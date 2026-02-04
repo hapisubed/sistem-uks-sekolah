@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Pasien - Sistem UKS Sekolah</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.ico">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="assets/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <img src="assets/images/uks-logo.svg" alt="UKS Logo" width="32" height="32" class="me-2">
+                <div class="d-flex flex-column">
+                    <span class="fw-bold">Sistem UKS</span>
+                    <small class="text-light opacity-75" style="font-size: 0.7rem; line-height: 1;">Unit Kesehatan Sekolah</small>
+                </div>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house me-1"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="inventaris.html">
+                            <i class="bi bi-capsule me-1"></i>
+                            <span class="nav-text">Inventaris Obat</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="pasien.html" aria-current="page">
+                            <i class="bi bi-people me-1"></i>
+                            <span class="nav-text">Data Pasien</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid" style="margin-top: 76px;">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <!-- Sidebar Header -->
+                    <div class="sidebar-header mb-3 px-3">
+                        <div class="d-flex align-items-center">
+                            <img src="assets/images/uks-logo.svg" alt="UKS Logo" width="24" height="24" class="me-2">
+                            <div>
+                                <h6 class="mb-0 text-primary fw-bold">UKS Menu</h6>
+                                <small class="text-muted">Navigasi Utama</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Menu -->
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="index.html">
+                                <i class="bi bi-house me-2"></i>
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="inventaris.html">
+                                <i class="bi bi-capsule me-2"></i>
+                                Inventaris Obat
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="pasien.html" aria-current="page">
+                                <i class="bi bi-people me-2"></i>
+                                Data Pasien
+                                <span class="badge bg-primary ms-auto">Active</span>
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <!-- Quick Info -->
+                    <div class="mt-4 px-3">
+                        <div class="card border-0 bg-light-green">
+                            <div class="card-body p-2">
+                                <small class="text-muted d-block mb-1">Status Sistem</small>
+                                <div class="d-flex align-items-center">
+                                    <div class="status-indicator bg-success me-2"></div>
+                                    <small class="text-success fw-bold">Online</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main Content Area -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Data Pasien</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPasienModal">
+                                <i class="bi bi-person-plus me-1"></i>
+                                Catat Kunjungan
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="refreshPasienData()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts Container -->
+                <div id="alerts"></div>
+
+                <!-- Search and Filter -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" class="form-control" id="searchPasien" placeholder="Cari nama atau kelas...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" class="form-control" id="filterTanggal" title="Filter berdasarkan tanggal">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="filterKelas">
+                            <option value="">Semua Kelas/Jabatan</option>
+                            <option value="Kelas 10">Kelas 10</option>
+                            <option value="Kelas 11">Kelas 11</option>
+                            <option value="Kelas 12">Kelas 12</option>
+                            <option value="Guru">Guru</option>
+                            <option value="Staff">Staff</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                            <i class="bi bi-x-circle me-1"></i>Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Daily Report Section -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-calendar-day me-2"></i>
+                                        Laporan Harian Pasien
+                                    </h6>
+                                    <div class="d-flex gap-2">
+                                        <input type="date" class="form-control form-control-sm" id="reportDate" style="width: auto;">
+                                        <button class="btn btn-light btn-sm" onclick="generateDailyReport()">
+                                            <i class="bi bi-file-earmark-text me-1"></i>Generate
+                                        </button>
+                                        <button class="btn btn-outline-light btn-sm" onclick="printDailyReport()">
+                                            <i class="bi bi-printer me-1"></i>Print
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body" id="dailyReportContent">
+                                <div class="text-center text-muted">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Pilih tanggal dan klik "Generate" untuk melihat laporan harian
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pasien Table -->
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h6 class="m-0 font-weight-bold text-primary">Riwayat Kunjungan Pasien</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="pasienTable">
+                                <thead>
+                                    <tr>
+                                        <th>Tanggal</th>
+                                        <th>Waktu</th>
+                                        <th>Nama</th>
+                                        <th>Kelas/Jabatan</th>
+                                        <th>Keluhan</th>
+                                        <th>Diagnosa</th>
+                                        <th>Obat Diberikan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pasienTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p class="mt-2">Memuat data pasien...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Pasien Modal -->
+    <div class="modal fade" id="addPasienModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Catat Kunjungan Pasien</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="addPasienForm">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="namaPasien" class="form-label">Nama Pasien *</label>
+                                    <input type="text" class="form-control" id="namaPasien" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="kelasJabatan" class="form-label">Kelas/Jabatan *</label>
+                                    <input type="text" class="form-control" id="kelasJabatan" placeholder="Contoh: Kelas 10A, Guru Matematika" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="tanggalKunjungan" class="form-label">Tanggal Kunjungan *</label>
+                                    <input type="date" class="form-control" id="tanggalKunjungan" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="waktuKunjungan" class="form-label">Waktu Kunjungan *</label>
+                                    <input type="time" class="form-control" id="waktuKunjungan" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="keluhan" class="form-label">Keluhan *</label>
+                            <textarea class="form-control" id="keluhan" rows="3" placeholder="Jelaskan keluhan pasien..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="diagnosa" class="form-label">Diagnosa</label>
+                            <textarea class="form-control" id="diagnosa" rows="2" placeholder="Diagnosa atau kesimpulan pemeriksaan..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="obatDiberikan" class="form-label">Obat yang Diberikan</label>
+                            <textarea class="form-control" id="obatDiberikan" rows="2" placeholder="Contoh: Paracetamol 1 tablet, Betadine + Hansaplast"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan Kunjungan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="assets/js/navigation.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/pasien.js"></script>
+</body>
+</html>
