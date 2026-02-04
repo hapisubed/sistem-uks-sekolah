@@ -1,13 +1,13 @@
 # Flask Application untuk Sistem UKS Sekolah
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 from config import Config
 
-# Initialize Flask app
-app = Flask(__name__)
+# Initialize Flask app with static folder pointing to frontend
+app = Flask(__name__, static_folder='../frontend', static_url_path='')
 app.config.from_object(Config)
 
 # Initialize extensions
@@ -75,6 +75,20 @@ with app.app_context():
 
 @app.route('/')
 def index():
+    """Serve the main frontend page"""
+    return send_file('../frontend/index.html')
+
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """Serve frontend static files"""
+    try:
+        return send_from_directory('../frontend', path)
+    except:
+        # If file not found, serve index.html for SPA routing
+        return send_file('../frontend/index.html')
+
+@app.route('/api')
+def api_info():
     return jsonify({
         'message': 'Sistem UKS Sekolah API',
         'version': '1.0.0',
