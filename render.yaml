@@ -3,19 +3,10 @@ services:
     name: sistem-uks-sekolah
     env: python
     runtime: python-3.11.9
-    buildCommand: "apt-get update && apt-get install -y libpq-dev gcc && pip install --upgrade pip && cd backend && pip install -r requirements.txt"
+    buildCommand: "pip install --upgrade pip && cd backend && pip install -r requirements.txt"
     startCommand: "cd backend && gunicorn --bind 0.0.0.0:$PORT app:app"
     envVars:
       - key: FLASK_ENV
         value: production
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL
-        fromDatabase:
-          name: uks-database
-          property: connectionString
-
-databases:
-  - name: uks-database
-    databaseName: uks_sekolah
-    user: uks_user

@@ -1,4 +1,4 @@
-# Python dependencies untuk Sistem UKS Sekolah Backend (SQLite Version)
+# Simple requirements with SQLite (no PostgreSQL)
 Flask==3.0.3
 Flask-CORS==4.0.0
 SQLAlchemy==2.0.36
