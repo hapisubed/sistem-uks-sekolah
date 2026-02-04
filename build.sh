@@ -3,6 +3,10 @@
 
 set -o errexit  # exit on error
 
+# Install system dependencies for PostgreSQL
+apt-get update
+apt-get install -y libpq-dev gcc
+
 # Upgrade pip first
 pip install --upgrade pip
 

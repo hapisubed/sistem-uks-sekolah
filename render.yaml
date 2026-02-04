@@ -3,8 +3,8 @@ services:
     name: sistem-uks-sekolah
     env: python
     runtime: python-3.11.9
-    buildCommand: "pip install --upgrade pip && cd backend && pip install -r requirements.txt"
-    startCommand: "cd backend && python app.py"
+    buildCommand: "apt-get update && apt-get install -y libpq-dev gcc && pip install --upgrade pip && cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && gunicorn --bind 0.0.0.0:$PORT app:app"
     envVars:
       - key: FLASK_ENV
         value: production
