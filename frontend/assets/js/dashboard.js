@@ -8,28 +8,69 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * Initialize dashboard
+ * Initialize dashboard with enhanced loading
  */
 async function initializeDashboard() {
     try {
-        // Show loading states
-        showLoading('totalObat');
-        showLoading('pasienHariIni');
-        showLoading('stokRendah');
-        showLoading('obatKadaluarsa');
-
+        // Show page loading overlay
+        showPageLoading('Memuat dashboard...');
+        
+        // Show skeleton loading for cards
+        showSkeletonLoading();
+        
         // Load dashboard statistics
         await loadDashboardStats();
         
         // Load notifications
         await loadNotifications();
         
+        // Hide page loading
+        hidePageLoading();
+        
+        // Show success toast
+        showToast('Dashboard berhasil dimuat', 'success', 2000);
+        
         // Set up auto-refresh (every 5 minutes)
-        setInterval(loadDashboardStats, 5 * 60 * 1000);
+        setInterval(async () => {
+            try {
+                await loadDashboardStats();
+                await loadNotifications();
+            } catch (error) {
+                console.error('Auto-refresh failed:', error);
+            }
+        }, 5 * 60 * 1000);
         
     } catch (error) {
         console.error('Error initializing dashboard:', error);
-        showAlert('Gagal memuat data dashboard', 'danger', 'notifikasi');
+        hidePageLoading();
+        showToast('Gagal memuat dashboard', 'error');
+        showAlert('Gagal memuat data dashboard. Silakan refresh halaman.', 'danger', 'notifikasi');
+    }
+}
+
+/**
+ * Show skeleton loading for dashboard cards
+ */
+function showSkeletonLoading() {
+    const statCards = ['totalObat', 'pasienHariIni', 'stokRendah', 'obatKadaluarsa'];
+    
+    statCards.forEach(cardId => {
+        const element = document.getElementById(cardId);
+        if (element) {
+            element.innerHTML = `
+                <div class="skeleton skeleton-text" style="width: 60px; height: 2rem;"></div>
+            `;
+        }
+    });
+    
+    // Show skeleton for notifications
+    const notifikasiContainer = document.getElementById('notifikasi');
+    if (notifikasiContainer) {
+        notifikasiContainer.innerHTML = `
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text" style="width: 70%;"></div>
+        `;
     }
 }
 

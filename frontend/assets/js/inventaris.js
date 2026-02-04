@@ -234,7 +234,7 @@ function applyFilters(searchTerm = '') {
 }
 
 /**
- * Handle add obat form submission
+ * Handle add obat form submission with enhanced UX
  */
 async function handleAddObat(event) {
     event.preventDefault();
@@ -247,19 +247,36 @@ async function handleAddObat(event) {
         deskripsi: document.getElementById('deskripsiObat').value.trim()
     };
     
-    // Validate form
+    // Enhanced validation
     const validation = validateObatForm(formData);
     if (!validation.isValid) {
-        showAlert(validation.errors.join('<br>'), 'danger');
+        // Show validation errors with shake animation
+        const form = event.target;
+        form.classList.add('shake');
+        setTimeout(() => form.classList.remove('shake'), 500);
+        
+        showToast(validation.errors.join('<br>'), 'error');
         return;
     }
     
+    // Show warnings if any
+    if (validation.hasWarnings) {
+        const confirmWarnings = await showConfirmDialog(
+            'Peringatan',
+            `Ada beberapa peringatan:\n${validation.warnings.join('\n')}\n\nLanjutkan menyimpan?`
+        );
+        if (!confirmWarnings) return;
+    }
+    
     try {
-        // Show loading state
+        // Enhanced loading state
         const submitBtn = event.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
+        submitBtn.classList.add('loading');
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...';
+        
+        // Show progress toast
+        const progressToast = showToast('Menyimpan obat...', 'info', 0);
         
         // Use API wrapper
         const response = await api.addObat(formData);
@@ -268,7 +285,7 @@ async function handleAddObat(event) {
             // Add to local data
             obatData.push(response.data);
             
-            // Refresh table
+            // Refresh table with animation
             applyFilters();
             
             // Close modal and reset form
@@ -276,60 +293,157 @@ async function handleAddObat(event) {
             modal.hide();
             event.target.reset();
             
-            showAlert('Obat berhasil ditambahkan', 'success');
+            // Remove validation classes
+            const inputs = event.target.querySelectorAll('.form-control');
+            inputs.forEach(input => {
+                input.classList.remove('is-valid', 'is-invalid');
+            });
+            
+            showToast('Obat berhasil ditambahkan', 'success');
         } else {
             throw new Error(response.message || 'Gagal menambahkan obat');
         }
         
     } catch (error) {
         console.error('Error adding obat:', error);
-        showAlert('Gagal menambahkan obat', 'danger');
+        showToast(`Gagal menambahkan obat: ${error.message}`, 'error');
     } finally {
         // Reset button state
         const submitBtn = event.target.querySelector('button[type="submit"]');
+        submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Simpan Obat';
     }
 }
 
 /**
- * Validate obat form data
+ * Show confirmation dialog
+ * @param {string} title - Dialog title
+ * @param {string} message - Dialog message
+ * @returns {Promise<boolean>} User confirmation
+ */
+function showConfirmDialog(title, message) {
+    return new Promise((resolve) => {
+        // Create modal if it doesn't exist
+        let confirmModal = document.getElementById('confirmModal');
+        if (!confirmModal) {
+            confirmModal = document.createElement('div');
+            confirmModal.id = 'confirmModal';
+            confirmModal.className = 'modal fade';
+            confirmModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="confirmModalTitle">${title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="confirmModalBody">
+                            ${message.replace(/\n/g, '<br>')}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary" id="confirmModalOk">Ya, Lanjutkan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmModal);
+        } else {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalBody').innerHTML = message.replace(/\n/g, '<br>');
+        }
+        
+        const modal = new bootstrap.Modal(confirmModal);
+        
+        // Handle OK button
+        const okBtn = document.getElementById('confirmModalOk');
+        const handleOk = () => {
+            modal.hide();
+            resolve(true);
+            okBtn.removeEventListener('click', handleOk);
+        };
+        okBtn.addEventListener('click', handleOk);
+        
+        // Handle modal close
+        const handleClose = () => {
+            resolve(false);
+            confirmModal.removeEventListener('hidden.bs.modal', handleClose);
+        };
+        confirmModal.addEventListener('hidden.bs.modal', handleClose);
+        
+        modal.show();
+    });
+}
+
+/**
+ * Enhanced obat form validation with detailed rules
  */
 function validateObatForm(data) {
-    const errors = [];
+    const validationRules = [
+        {
+            name: 'nama',
+            rules: {
+                required: true,
+                minLength: 2,
+                maxLength: 100,
+                pattern: /^[a-zA-Z0-9\s\-\+\%]+$/,
+                patternMessage: 'Nama obat hanya boleh mengandung huruf, angka, spasi, tanda hubung, plus, dan persen'
+            }
+        },
+        {
+            name: 'jenis',
+            rules: {
+                required: true
+            }
+        },
+        {
+            name: 'stok',
+            rules: {
+                required: true,
+                min: 0,
+                max: 10000,
+                warnIfLow: 5
+            }
+        },
+        {
+            name: 'tanggal_kadaluarsa',
+            rules: {
+                required: true,
+                dateNotPast: true,
+                warnIfExpiringSoon: true
+            }
+        }
+    ];
     
-    if (!data.nama) {
-        errors.push('Nama obat harus diisi');
-    }
+    const validation = validateFormData(data, validationRules);
     
-    if (!data.jenis) {
-        errors.push('Jenis obat harus dipilih');
-    }
-    
-    if (!data.stok || data.stok < 0) {
-        errors.push('Stok harus berupa angka positif');
-    }
-    
-    if (!data.tanggal_kadaluarsa) {
-        errors.push('Tanggal kadaluarsa harus diisi');
-    } else {
+    // Additional custom validations
+    if (data.tanggal_kadaluarsa) {
         const expiryDate = new Date(data.tanggal_kadaluarsa);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
         if (expiryDate < today) {
-            errors.push('Tanggal kadaluarsa tidak boleh di masa lalu');
+            validation.errors.push('Tanggal kadaluarsa tidak boleh di masa lalu');
+            validation.isValid = false;
+        }
+        
+        // Check if expiring within 30 days
+        const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+        if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
+            validation.warnings.push(`Obat akan kadaluarsa dalam ${daysUntilExpiry} hari`);
         }
     }
     
-    return {
-        isValid: errors.length === 0,
-        errors: errors
-    };
+    // Check for low stock
+    if (data.stok && parseInt(data.stok) < 5) {
+        validation.warnings.push(`Stok obat rendah (${data.stok} unit)`);
+    }
+    
+    return validation;
 }
 
 /**
- * Setup form validation
+ * Setup form validation with enhanced rules
  */
 function setupFormValidation() {
     // Set minimum date for expiry date to today
@@ -344,51 +458,71 @@ function setupFormValidation() {
         editExpiryInput.min = today;
     }
     
-    // Real-time validation for add form
-    const namaInput = document.getElementById('namaObat');
-    if (namaInput) {
-        namaInput.addEventListener('input', function() {
-            if (this.value.trim().length < 2) {
-                this.setCustomValidity('Nama obat minimal 2 karakter');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-    }
+    // Setup real-time validation for add form
+    const addFormRules = {
+        namaObat: {
+            required: true,
+            minLength: 2,
+            maxLength: 100,
+            label: 'Nama Obat'
+        },
+        jenisObat: {
+            required: true,
+            label: 'Jenis Obat'
+        },
+        stokObat: {
+            required: true,
+            min: 0,
+            max: 10000,
+            warnIfLow: 5,
+            label: 'Stok'
+        },
+        tanggalKadaluarsa: {
+            required: true,
+            dateNotPast: true,
+            warnIfExpiringSoon: true,
+            label: 'Tanggal Kadaluarsa'
+        },
+        deskripsiObat: {
+            maxLength: 500,
+            label: 'Deskripsi'
+        }
+    };
     
-    const stokInput = document.getElementById('stokObat');
-    if (stokInput) {
-        stokInput.addEventListener('input', function() {
-            if (this.value < 0) {
-                this.setCustomValidity('Stok tidak boleh negatif');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-    }
+    setupRealtimeValidation('addObatForm', addFormRules);
     
-    // Real-time validation for edit form
-    const editNamaInput = document.getElementById('editNamaObat');
-    if (editNamaInput) {
-        editNamaInput.addEventListener('input', function() {
-            if (this.value.trim().length < 2) {
-                this.setCustomValidity('Nama obat minimal 2 karakter');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-    }
+    // Setup real-time validation for edit form
+    const editFormRules = {
+        editNamaObat: {
+            required: true,
+            minLength: 2,
+            maxLength: 100,
+            label: 'Nama Obat'
+        },
+        editJenisObat: {
+            required: true,
+            label: 'Jenis Obat'
+        },
+        editStokObat: {
+            required: true,
+            min: 0,
+            max: 10000,
+            warnIfLow: 5,
+            label: 'Stok'
+        },
+        editTanggalKadaluarsa: {
+            required: true,
+            dateNotPast: true,
+            warnIfExpiringSoon: true,
+            label: 'Tanggal Kadaluarsa'
+        },
+        editDeskripsiObat: {
+            maxLength: 500,
+            label: 'Deskripsi'
+        }
+    };
     
-    const editStokInput = document.getElementById('editStokObat');
-    if (editStokInput) {
-        editStokInput.addEventListener('input', function() {
-            if (this.value < 0) {
-                this.setCustomValidity('Stok tidak boleh negatif');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-    }
+    setupRealtimeValidation('editObatForm', editFormRules);
 }
 
 /**

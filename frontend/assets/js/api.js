@@ -14,17 +14,19 @@ class APIClient {
     }
 
     /**
-     * Generic HTTP request method
+     * Generic HTTP request method with enhanced error handling
      * @param {string} endpoint - API endpoint
      * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
      * @param {Object} data - Request body data
+     * @param {number} timeout - Request timeout in milliseconds
      * @returns {Promise} Response data
      */
-    async request(endpoint, method = 'GET', data = null) {
+    async request(endpoint, method = 'GET', data = null, timeout = 10000) {
         const url = `${this.baseURL}${endpoint}`;
         const config = {
             method: method,
-            headers: this.headers
+            headers: this.headers,
+            signal: AbortSignal.timeout(timeout)
         };
 
         if (data && (method === 'POST' || method === 'PUT')) {
@@ -35,13 +37,31 @@ class APIClient {
             const response = await fetch(url, config);
             
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    // If response is not JSON, use status text
+                    errorMessage = response.statusText || errorMessage;
+                }
+                throw new Error(errorMessage);
             }
             
             const result = await response.json();
             return result;
         } catch (error) {
             console.error(`API request failed: ${method} ${endpoint}`, error);
+            
+            // Enhanced error messages for better UX
+            if (error.name === 'AbortError') {
+                throw new Error('Request timeout - periksa koneksi internet Anda');
+            } else if (error.message.includes('Failed to fetch')) {
+                throw new Error('Tidak dapat terhubung ke server - periksa koneksi internet');
+            } else if (error.message.includes('NetworkError')) {
+                throw new Error('Masalah jaringan - coba lagi dalam beberapa saat');
+            }
+            
             throw error;
         }
     }
@@ -529,53 +549,180 @@ window.api = api;
 // ==================== UTILITY FUNCTIONS ====================
 
 /**
- * Show loading state
+ * Enhanced loading state management
  * @param {string} elementId - Element ID to show loading
+ * @param {string} message - Loading message
  */
-function showLoading(elementId) {
+function showLoading(elementId, message = 'Memuat...') {
     const element = document.getElementById(elementId);
     if (element) {
-        element.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>';
+        element.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>${message}</span>
+            </div>
+        `;
         element.classList.add('loading');
     }
 }
 
 /**
- * Hide loading state
- * @param {string} elementId - Element ID to hide loading
+ * Show full page loading overlay
  */
-function hideLoading(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.classList.remove('loading');
+function showPageLoading(message = 'Memuat data...') {
+    let overlay = document.getElementById('pageLoadingOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'pageLoadingOverlay';
+        overlay.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center';
+        overlay.style.cssText = 'background: rgba(255,255,255,0.9); z-index: 9999; backdrop-filter: blur(2px);';
+        overlay.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="fw-bold text-primary">${message}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+}
+
+/**
+ * Hide full page loading overlay
+ */
+function hidePageLoading() {
+    const overlay = document.getElementById('pageLoadingOverlay');
+    if (overlay) {
+        overlay.style.display = 'none';
     }
 }
 
 /**
- * Show alert message
+ * Enhanced toast notification system
+ * @param {string} message - Toast message
+ * @param {string} type - Toast type (success, error, warning, info)
+ * @param {number} duration - Duration in milliseconds
+ */
+function showToast(message, type = 'info', duration = 4000) {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toastId = 'toast_' + Date.now();
+    const toastElement = document.createElement('div');
+    toastElement.id = toastId;
+    toastElement.className = 'toast align-items-center border-0';
+    
+    // Set toast color based on type
+    let bgClass = 'bg-primary';
+    let icon = 'bi-info-circle-fill';
+    
+    switch (type) {
+        case 'success':
+            bgClass = 'bg-success';
+            icon = 'bi-check-circle-fill';
+            break;
+        case 'error':
+        case 'danger':
+            bgClass = 'bg-danger';
+            icon = 'bi-x-circle-fill';
+            break;
+        case 'warning':
+            bgClass = 'bg-warning';
+            icon = 'bi-exclamation-triangle-fill';
+            break;
+        default:
+            bgClass = 'bg-info';
+            icon = 'bi-info-circle-fill';
+    }
+    
+    toastElement.className += ` ${bgClass} text-white`;
+    toastElement.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center">
+                <i class="bi ${icon} me-2"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    toastContainer.appendChild(toastElement);
+
+    // Initialize and show toast
+    const toast = new bootstrap.Toast(toastElement, {
+        autohide: true,
+        delay: duration
+    });
+    
+    toast.show();
+
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+
+/**
+ * Enhanced alert with better styling and auto-dismiss
  * @param {string} message - Alert message
  * @param {string} type - Alert type (success, warning, danger, info)
  * @param {string} containerId - Container element ID
+ * @param {boolean} autoDismiss - Auto dismiss after timeout
  */
-function showAlert(message, type = 'info', containerId = 'alerts') {
+function showAlert(message, type = 'info', containerId = 'alerts', autoDismiss = true) {
+    // Use toast for better UX
+    showToast(message, type);
+    
+    // Also show in container if specified
     const container = document.getElementById(containerId);
     if (!container) return;
 
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    
+    let icon = 'bi-info-circle-fill';
+    switch (type) {
+        case 'success':
+            icon = 'bi-check-circle-fill';
+            break;
+        case 'warning':
+            icon = 'bi-exclamation-triangle-fill';
+            break;
+        case 'danger':
+            icon = 'bi-x-circle-fill';
+            break;
+    }
+    
     alertDiv.innerHTML = `
-        ${message}
+        <div class="d-flex align-items-center">
+            <i class="bi ${icon} me-2"></i>
+            <div>${message}</div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
 
     container.appendChild(alertDiv);
 
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 5000);
+    // Auto remove after timeout
+    if (autoDismiss) {
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
 }
 
 /**
@@ -602,30 +749,180 @@ function formatTime(timeString) {
 }
 
 /**
- * Validate form data
+ * Enhanced form validation with real-time feedback
  * @param {Object} data - Form data to validate
- * @param {Array} requiredFields - Required field names
+ * @param {Array} requiredFields - Required field names with validation rules
  * @returns {Object} Validation result
  */
 function validateFormData(data, requiredFields) {
     const errors = [];
+    const warnings = [];
     
     requiredFields.forEach(field => {
-        if (!data[field] || data[field].toString().trim() === '') {
-            errors.push(`${field} harus diisi`);
+        const fieldName = typeof field === 'string' ? field : field.name;
+        const rules = typeof field === 'object' ? field.rules : {};
+        const value = data[fieldName];
+        
+        // Required validation
+        if (!value || value.toString().trim() === '') {
+            errors.push(`${fieldName} harus diisi`);
+            return;
+        }
+        
+        // Apply specific validation rules
+        if (rules.minLength && value.length < rules.minLength) {
+            errors.push(`${fieldName} minimal ${rules.minLength} karakter`);
+        }
+        
+        if (rules.maxLength && value.length > rules.maxLength) {
+            errors.push(`${fieldName} maksimal ${rules.maxLength} karakter`);
+        }
+        
+        if (rules.pattern && !rules.pattern.test(value)) {
+            errors.push(`Format ${fieldName} tidak valid`);
+        }
+        
+        if (rules.min && parseFloat(value) < rules.min) {
+            errors.push(`${fieldName} minimal ${rules.min}`);
+        }
+        
+        if (rules.max && parseFloat(value) > rules.max) {
+            errors.push(`${fieldName} maksimal ${rules.max}`);
+        }
+        
+        // Date validations
+        if (rules.dateNotFuture && new Date(value) > new Date()) {
+            errors.push(`${fieldName} tidak boleh di masa depan`);
+        }
+        
+        if (rules.dateNotPast && new Date(value) < new Date()) {
+            errors.push(`${fieldName} tidak boleh di masa lalu`);
+        }
+        
+        // Warnings for potential issues
+        if (rules.warnIfLow && parseFloat(value) < rules.warnIfLow) {
+            warnings.push(`${fieldName} sangat rendah (${value})`);
+        }
+        
+        if (rules.warnIfExpiringSoon) {
+            const expiryDate = new Date(value);
+            const daysUntilExpiry = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
+            if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
+                warnings.push(`${fieldName} akan kadaluarsa dalam ${daysUntilExpiry} hari`);
+            }
         }
     });
 
     return {
         isValid: errors.length === 0,
-        errors: errors
+        errors: errors,
+        warnings: warnings,
+        hasWarnings: warnings.length > 0
     };
+}
+
+/**
+ * Setup real-time form validation
+ * @param {string} formId - Form element ID
+ * @param {Object} validationRules - Validation rules for each field
+ */
+function setupRealtimeValidation(formId, validationRules) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    
+    Object.keys(validationRules).forEach(fieldName => {
+        const field = form.querySelector(`[name="${fieldName}"], #${fieldName}`);
+        if (!field) return;
+        
+        const rules = validationRules[fieldName];
+        
+        // Create feedback element
+        let feedback = field.parentNode.querySelector('.invalid-feedback');
+        if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback';
+            field.parentNode.appendChild(feedback);
+        }
+        
+        // Add validation on input/change
+        field.addEventListener('input', function() {
+            validateField(this, rules, feedback);
+        });
+        
+        field.addEventListener('blur', function() {
+            validateField(this, rules, feedback);
+        });
+    });
+}
+
+/**
+ * Validate individual field
+ * @param {HTMLElement} field - Form field element
+ * @param {Object} rules - Validation rules
+ * @param {HTMLElement} feedback - Feedback element
+ */
+function validateField(field, rules, feedback) {
+    const value = field.value.trim();
+    let isValid = true;
+    let message = '';
+    
+    // Required validation
+    if (rules.required && !value) {
+        isValid = false;
+        message = `${rules.label || field.name} harus diisi`;
+    }
+    
+    // Length validations
+    if (value && rules.minLength && value.length < rules.minLength) {
+        isValid = false;
+        message = `Minimal ${rules.minLength} karakter`;
+    }
+    
+    if (value && rules.maxLength && value.length > rules.maxLength) {
+        isValid = false;
+        message = `Maksimal ${rules.maxLength} karakter`;
+    }
+    
+    // Pattern validation
+    if (value && rules.pattern && !rules.pattern.test(value)) {
+        isValid = false;
+        message = rules.patternMessage || 'Format tidak valid';
+    }
+    
+    // Number validations
+    if (value && rules.min !== undefined && parseFloat(value) < rules.min) {
+        isValid = false;
+        message = `Minimal ${rules.min}`;
+    }
+    
+    if (value && rules.max !== undefined && parseFloat(value) > rules.max) {
+        isValid = false;
+        message = `Maksimal ${rules.max}`;
+    }
+    
+    // Update field appearance
+    if (isValid) {
+        field.classList.remove('is-invalid');
+        field.classList.add('is-valid');
+        feedback.textContent = '';
+    } else {
+        field.classList.remove('is-valid');
+        field.classList.add('is-invalid');
+        feedback.textContent = message;
+    }
+    
+    return isValid;
 }
 
 // Export utility functions
 window.showLoading = showLoading;
 window.hideLoading = hideLoading;
+window.showPageLoading = showPageLoading;
+window.hidePageLoading = hidePageLoading;
 window.showAlert = showAlert;
+window.showToast = showToast;
 window.formatDate = formatDate;
 window.formatTime = formatTime;
 window.validateFormData = validateFormData;
+window.setupRealtimeValidation = setupRealtimeValidation;
+window.validateField = validateField;
