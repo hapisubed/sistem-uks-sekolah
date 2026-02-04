@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: sistem-uks-sekolah
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && python app.py"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: uks-database
+          property: connectionString
+
+databases:
+  - name: uks-database
+    databaseName: uks_sekolah
+    user: uks_user
